@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI Job Mission Control</title>
+  <style>
+    :root{color-scheme:dark;--bg:#070914;--panel:#111526;--text:#f7f7fb;--muted:#9ba4bd;--line:#29314b;--pink:#ff66b3;--violet:#9d7cff;--green:#5ee0b5;--amber:#ffd166;--red:#ff7b8a}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% -10%,#432050 0,transparent 34%),radial-gradient(circle at -10% 25%,#17305b 0,transparent 30%),var(--bg);color:var(--text);font:15px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+    button,input{font:inherit}.shell{max-width:1280px;margin:auto;padding:22px}.hidden{display:none!important}.card{background:rgba(17,21,38,.92);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 16px 50px #0004}.login{max-width:440px;margin:12vh auto}.eyebrow{color:var(--green);font-weight:800;letter-spacing:.12em;font-size:11px}.login h1,.hero h1{margin:.4rem 0;font-size:clamp(30px,5vw,48px);line-height:1.05}.muted{color:var(--muted)}label{display:block;margin:15px 0 6px;font-weight:700}input{width:100%;padding:12px 13px;border-radius:11px;border:1px solid var(--line);background:#080b17;color:var(--text)}button{border:1px solid var(--line);background:#161b30;color:var(--text);padding:10px 13px;border-radius:11px;cursor:pointer}.primary{background:linear-gradient(90deg,var(--pink),var(--violet));border:0;font-weight:800}.wide{width:100%;margin-top:18px}.error{color:var(--red);margin-top:12px}.success{color:var(--green);margin-top:12px}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.brand{font-weight:900;font-size:20px}.hero{margin:16px 0;padding:24px;background:linear-gradient(135deg,#ffffff0c,#ffffff04);border:1px solid var(--line);border-radius:22px}.hero p{max-width:720px}.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:14px 0}.stat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:15px}.stat strong{display:block;font-size:27px}.stat span{color:var(--muted);font-size:12px}.tabs{display:flex;gap:8px;overflow:auto;padding:4px 0 12px}.tabs button.active{background:linear-gradient(90deg,var(--pink),var(--violet));border-color:transparent}.toolbar{display:flex;gap:10px;margin-bottom:12px}.toolbar input{max-width:420px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.item{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}.item h3{margin:7px 0 3px}.row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.tag{font-size:11px;border:1px solid var(--line);border-radius:999px;padding:4px 8px}.good{color:var(--green)}.warn{color:var(--amber)}.empty{text-align:center;color:var(--muted);padding:50px}.loading{position:fixed;inset:0;background:#070914dd;display:grid;place-items:center;z-index:10}.spinner{width:38px;height:38px;border:4px solid #ffffff20;border-top-color:var(--pink);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}a{color:#b9c7ff}.sectionTitle{display:flex;justify-content:space-between;align-items:center;gap:12px}
+    @media(max-width:850px){.stats{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.shell{padding:12px}}
+  </style>
+</head>
+<body>
+  <div id="loading" class="loading hidden"><div><div class="spinner"></div><p>Loading Mission Control…</p></div></div>
+
+  <main id="login" class="shell">
+    <section class="card login">
+      <div class="eyebrow">PRIVATE · AUTHENTICATED</div>
+      <h1>AI Job Mission Control</h1>
+      <p class="muted">Enter your email and we’ll send you a secure sign-in link. No password required.</p>
+      <form id="loginForm">
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="email" value="sriupanya@gmail.com" required>
+        <button class="primary wide" type="submit">Email me a sign-in link</button>
+      </form>
+      <div id="loginMessage"></div>
+    </section>
+  </main>
+
+  <main id="dashboard" class="shell hidden">
+    <header class="top"><div class="brand">AI Job Mission Control ✦</div><div class="row"><span id="account" class="muted"></span><button id="refresh">Refresh</button><button id="signOut">Sign out</button></div></header>
+    <section class="hero"><div class="eyebrow">SUPABASE · RLS · READ ONLY</div><h1>Your career operating system.</h1><p class="muted">One canonical view for roles, companies, networking, applications, and projects.</p></section>
+    <section id="stats" class="stats"></section><nav id="tabs" class="tabs"></nav><section class="toolbar"><input id="search" type="search" placeholder="Search the current view…"></section><section id="content"></section>
+  </main>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.95.0/+esm";
+    import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "./config.js";
+
+    const sb=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,detectSessionInUrl:true}});
+    const state={data:null,tab:"Today",query:""};
+    const el=id=>document.getElementById(id);
+    const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    const terminal=new Set(["Rejected","Pass","Closed","Withdrawn"]),tabs=["Today","Jobs","Companies","People","Applications","Projects"];
+    const setLoading=on=>el("loading").classList.toggle("hidden",!on);
+    const showLogin=()=>{el("login").classList.remove("hidden");el("dashboard").classList.add("hidden")};
+    const showDashboard=()=>{el("login").classList.add("hidden");el("dashboard").classList.remove("hidden")};
+    const withTimeout=(promise,ms,label)=>Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error(`${label} timed out after ${Math.round(ms/1000)} seconds. Check your internet connection and try again.`)),ms))]);
+
+    async function loadCore(){
+      setLoading(true);
+      try{
+        const {data:{session}}=await withTimeout(sb.auth.getSession(),10000,"Session check");
+        if(!session){showLogin();return}
+        const response=await withTimeout(fetch(`${SUPABASE_URL}/functions/v1/mission-control-core-auth-v1`,{headers:{Authorization:`Bearer ${session.access_token}`,apikey:SUPABASE_PUBLISHABLE_KEY}}),15000,"Tracker load");
+        if(response.status===401){await sb.auth.signOut();showLogin();throw new Error("Your session expired. Please sign in again.")}
+        if(!response.ok)throw new Error(`Core API returned HTTP ${response.status}`);
+        const payload=await response.json();state.data=payload.data;el("account").textContent=session.user.email??"";showDashboard();render();
+      }catch(err){showLogin();el("loginMessage").className="error";el("loginMessage").textContent=err.message}
+      finally{setLoading(false)}
+    }
+
+    el("loginForm").addEventListener("submit",async event=>{
+      event.preventDefault();const msg=el("loginMessage");msg.textContent="";msg.className="";setLoading(true);
+      try{
+        const email=el("email").value.trim();
+        const redirectTo=`${window.location.origin}${window.location.pathname}`;
+        const {error}=await withTimeout(sb.auth.signInWithOtp({email,options:{emailRedirectTo:redirectTo,shouldCreateUser:false}}),12000,"Sign-in request");
+        if(error)throw error;
+        msg.className="success";msg.textContent=`Sign-in link sent to ${email}. Open the email on this Mac and click the link.`;
+      }catch(err){msg.className="error";msg.textContent=err.message||String(err)}
+      finally{setLoading(false)}
+    });
+
+    el("signOut").addEventListener("click",async()=>{await sb.auth.signOut();state.data=null;showLogin()});
+    el("refresh").addEventListener("click",loadCore);
+    el("search").addEventListener("input",e=>{state.query=e.target.value.toLowerCase();renderContent()});
+    function match(...values){return !state.query||values.some(v=>String(v??"").toLowerCase().includes(state.query))}
+    function tag(text,cls=""){return `<span class="tag ${cls}">${esc(text)}</span>`}
+    function jobCard(j){return `<article class="item"><div class="row">${tag(j.status,terminal.has(j.status)?"":"good")}${j.h1b_status?tag("H-1B "+j.h1b_status,/friendly|yes|strong/i.test(j.h1b_status)?"good":"warn"):""}</div><h3>${esc(j.title)}</h3><div class="muted">${esc(j.company)} · ${esc(j.location)}</div><p>${esc(j.selection_rationale||j.notes||"")}</p><div class="row"><b>${esc(j.fit_score??"—")}/10 fit</b>${j.apply_url?`<a href="${esc(j.apply_url)}" target="_blank" rel="noopener">Open role ↗</a>`:""}</div></article>`}
+    function personCard(p){return `<article class="item"><div class="row">${tag(p.status||"Not contacted")}${p.public_profile_verified?tag("Verified","good"):""}</div><h3>${esc(p.name)}</h3><div class="muted">${esc(p.title)} · ${esc(p.company)}</div><p>${esc(p.priority_reason||"")}</p>${p.linkedin_url?`<a href="${esc(p.linkedin_url)}" target="_blank" rel="noopener">LinkedIn ↗</a>`:""}</article>`}
+    function companyCard(c){return `<article class="item"><div class="row">${tag(c.priority_tier)}${tag("H-1B "+c.h1b_confidence,/strong|high|friendly/i.test(c.h1b_confidence)?"good":"warn")}</div><h3>${esc(c.company)}</h3><div class="muted">${esc(c.category)}</div><p>${esc(c.h1b_evidence||c.notes||"")}</p></article>`}
+    function projectCard(p){return `<article class="item"><div class="row">${tag(p.status)}${tag(p.verification_status,p.resume_eligible?"good":"warn")}</div><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p><div class="muted">${esc((p.skills||[]).join(" · "))}</div></article>`}
+    function render(){const d=state.data;const active=d.jobs.filter(j=>!terminal.has(j.status));const applied=d.jobs.filter(j=>["Applied","Recruiter Screen","Interview","Offer"].includes(j.status));const stats=[["Active roles",active.length],["In process",applied.length],["Companies",d.companies.length],["People",d.contacts.length],["Outreach",d.outreach.length]];el("stats").innerHTML=stats.map(([label,value])=>`<div class="stat"><strong>${value}</strong><span>${label}</span></div>`).join("");el("tabs").innerHTML=tabs.map(t=>`<button class="${state.tab===t?"active":""}" data-tab="${t}">${t}</button>`).join("");el("tabs").querySelectorAll("button").forEach(b=>b.onclick=()=>{state.tab=b.dataset.tab;state.query="";el("search").value="";render()});renderContent()}
+    function renderContent(){const d=state.data;let title="",items=[];if(state.tab==="Today"){title="Top active roles";items=d.jobs.filter(j=>!terminal.has(j.status)).filter(j=>match(j.company,j.title,j.location)).slice(0,10).map(jobCard)}if(state.tab==="Jobs"){title="Active roles";items=d.jobs.filter(j=>!terminal.has(j.status)).filter(j=>match(j.company,j.title,j.location,j.status)).map(jobCard)}if(state.tab==="Companies"){title="Target companies";items=d.companies.filter(c=>match(c.company,c.category,c.priority_tier)).map(companyCard)}if(state.tab==="People"){title="Network";items=d.contacts.filter(p=>match(p.name,p.company,p.title,p.status)).map(personCard)}if(state.tab==="Applications"){title="Application history";items=d.application_updates.filter(a=>match(a.stage,a.notes,a.contact_name)).map(a=>`<article class="item"><div class="row">${tag(a.stage,"good")}<span class="muted">${esc(new Date(a.event_at).toLocaleDateString())}</span></div><p>${esc(a.notes||"")}</p><div class="muted">${esc(a.contact_name||"")}</div></article>`)}if(state.tab==="Projects"){title="Project Registry";items=d.personal_projects.filter(p=>match(p.name,p.description,p.status)).map(projectCard)}el("content").innerHTML=`<div class="sectionTitle"><h2>${title}</h2><span class="muted">${items.length} shown</span></div><div class="grid">${items.join("")}</div>${items.length?"":'<div class="empty">No matching items.</div>'}`}
+
+    sb.auth.onAuthStateChange((event,session)=>{if(session&&["SIGNED_IN","TOKEN_REFRESHED"].includes(event))setTimeout(()=>loadCore(),0)});
+    try{const {data:{session}}=await withTimeout(sb.auth.getSession(),10000,"Initial session check");if(session)await loadCore();else showLogin()}catch(err){showLogin();el("loginMessage").className="error";el("loginMessage").textContent=err.message;setLoading(false)}
+  </script>
+</body>
+</html>
