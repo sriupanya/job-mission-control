@@ -34,4 +34,4 @@ Email checks run hourly. First sign-in links may wait for that check; users can 
 
 ## Hosting
 
-Sites publishes only the four files in public-site. After frontend edits, copy index.html, app.js, studio.css and config.js there before packaging. Backend code and SQL are not public-site assets. Existing GitHub Pages workflow was already failing during Configure Pages, so Sites is the requested public deployment destination; the GitHub source remains the code review record.
+Sites publishes only the four files in dist. After frontend edits, copy index.html, app.js, studio.css and config.js there before packaging. Backend code and SQL are not dist assets. Existing GitHub Pages workflow was already failing during Configure Pages, so Sites is the requested public deployment destination; the GitHub source remains the code review record.
