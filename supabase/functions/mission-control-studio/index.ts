@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.95.0';
 const OWNER='8eb810c7-b99e-492e-8e17-ecb81a3911dd';
-const SITE='https://mission-control-career-studio.new-pixie-4092.chatgpt.site/';
+const SITE='https://mission-control-career-studio.uppuplays.chatgpt.site/';
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'POST,OPTIONS'};
 const json=(b:unknown,status=200)=>new Response(JSON.stringify(b),{status,headers:{...cors,'Content-Type':'application/json','Cache-Control':'no-store'}});
 Deno.serve(async(req:Request)=>{
